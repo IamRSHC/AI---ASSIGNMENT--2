@@ -1,0 +1,1782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neural Command Center — AI Problem Solving</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+/* ════════════════════════════════════════
+   GLOBAL RESET & VARIABLES
+════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #030b18;
+  --bg2:       #050e1e;
+  --panel:     #071528;
+  --border:    rgba(0, 212, 255, 0.12);
+  --border2:   rgba(0, 212, 255, 0.25);
+  --cyan:      #00d4ff;
+  --cyan-dim:  rgba(0, 212, 255, 0.35);
+  --purple:    #c084fc;
+  --purple-dim:rgba(192,132,252,0.35);
+  --amber:     #f59e0b;
+  --amber-dim: rgba(245,158,11,0.35);
+  --green:     #10b981;
+  --red:       #ef4444;
+  --text:      #c8d8f0;
+  --text-dim:  #6080a0;
+  --glow-c:    0 0 18px rgba(0,212,255,0.55), 0 0 40px rgba(0,212,255,0.2);
+  --glow-p:    0 0 18px rgba(192,132,252,0.55), 0 0 40px rgba(192,132,252,0.2);
+  --glow-a:    0 0 18px rgba(245,158,11,0.55), 0 0 40px rgba(245,158,11,0.2);
+}
+
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  font-size: 13px;
+  min-height: 100vh;
+  overflow-x: hidden;
+  line-height: 1.5;
+}
+
+/* ════════════════════════════════════════
+   BACKGROUND EFFECTS
+════════════════════════════════════════ */
+.bg-canvas {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 0; opacity: 0.25;
+}
+.scanlines {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 9999;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.07) 2px,
+    rgba(0,0,0,0.07) 4px
+  );
+}
+
+/* ════════════════════════════════════════
+   APP WRAPPER
+════════════════════════════════════════ */
+.app {
+  position: relative; z-index: 1;
+  max-width: 1220px;
+  margin: 0 auto;
+  padding: 0 16px 40px;
+}
+
+/* ════════════════════════════════════════
+   HEADER
+════════════════════════════════════════ */
+header {
+  padding: 28px 0 20px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border2);
+  margin-bottom: 0;
+  position: relative;
+}
+header::after {
+  content: '';
+  position: absolute;
+  bottom: -1px; left: 0;
+  width: 340px; height: 1px;
+  background: linear-gradient(90deg, var(--cyan), transparent);
+}
+.header-left {}
+.header-title {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: clamp(18px, 2.5vw, 28px);
+  letter-spacing: 0.12em;
+  color: #fff;
+  text-shadow: var(--glow-c);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.header-title .hex {
+  width: 36px; height: 36px;
+  background: var(--cyan);
+  clip-path: polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+  animation: hexPulse 3s ease-in-out infinite;
+}
+@keyframes hexPulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(0,212,255,0.4); opacity:1; }
+  50% { box-shadow: 0 0 0 8px rgba(0,212,255,0); opacity:0.8; }
+}
+.header-sub {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 6px;
+  letter-spacing: 0.05em;
+}
+.header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.badge {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  padding: 3px 8px;
+  border: 1px solid var(--border2);
+  color: var(--cyan);
+  background: rgba(0,212,255,0.05);
+}
+
+/* ════════════════════════════════════════
+   TABS
+════════════════════════════════════════ */
+.tab-nav {
+  display: flex;
+  gap: 0;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+.tab-btn {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  padding: 16px 28px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-dim);
+  position: relative;
+  transition: color 0.25s, background 0.25s;
+  border-right: 1px solid var(--border);
+}
+.tab-btn:first-child { border-left: 1px solid var(--border); }
+.tab-btn::after {
+  content: '';
+  position: absolute; bottom: -1px; left: 0;
+  width: 0; height: 2px;
+  transition: width 0.35s cubic-bezier(.4,0,.2,1);
+}
+.tab-btn.p9-tab::after { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+.tab-btn.p11-tab::after { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+.tab-btn.active { background: rgba(0,212,255,0.04); }
+.tab-btn.active.p11-tab { background: rgba(245,158,11,0.04); }
+.tab-btn.p9-tab.active { color: var(--cyan); text-shadow: 0 0 10px rgba(0,212,255,0.6); }
+.tab-btn.p11-tab.active { color: var(--amber); text-shadow: 0 0 10px rgba(245,158,11,0.6); }
+.tab-btn.active::after { width: 100%; }
+.tab-btn:hover:not(.active) { color: var(--text); background: rgba(255,255,255,0.02); }
+.tab-icon { margin-right: 8px; }
+
+/* ════════════════════════════════════════
+   TAB CONTENT
+════════════════════════════════════════ */
+.tab-content {
+  display: none;
+  padding-top: 20px;
+  animation: fadeIn 0.3s ease;
+}
+.tab-content.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ════════════════════════════════════════
+   CONTROL BAR
+════════════════════════════════════════ */
+.control-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  position: relative;
+}
+.control-bar::before {
+  content: '';
+  position: absolute; top: 0; left: 0;
+  width: 3px; height: 100%;
+}
+.p9-bar::before { background: var(--cyan); box-shadow: 2px 0 8px var(--cyan); }
+.p11-bar::before { background: var(--amber); box-shadow: 2px 0 8px var(--amber); }
+
+.mode-label {
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 0.08em;
+  margin-right: 4px;
+}
+.mode-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.mode-radio { display: none; }
+.mode-label-btn {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  padding: 5px 12px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+  letter-spacing: 0.04em;
+}
+.mode-radio:checked + .mode-label-btn {
+  background: rgba(0,212,255,0.1);
+  border-color: var(--cyan);
+  color: var(--cyan);
+  text-shadow: 0 0 8px rgba(0,212,255,0.5);
+}
+.p11-bar .mode-radio:checked + .mode-label-btn {
+  background: rgba(245,158,11,0.1);
+  border-color: var(--amber);
+  color: var(--amber);
+  text-shadow: 0 0 8px rgba(245,158,11,0.5);
+}
+.mode-label-btn:hover { border-color: rgba(200,216,240,0.3); color: var(--text); }
+
+.divider { width: 1px; height: 28px; background: var(--border); margin: 0 4px; }
+
+.btn {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 7px 14px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.btn::before {
+  content: '';
+  position: absolute; top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+  transition: left 0.4s;
+}
+.btn:hover::before { left: 100%; }
+.btn-bfs {
+  background: rgba(0,212,255,0.1);
+  border-color: rgba(0,212,255,0.4);
+  color: var(--cyan);
+}
+.btn-bfs:hover { background: rgba(0,212,255,0.2); box-shadow: var(--glow-c); }
+.btn-dfs {
+  background: rgba(192,132,252,0.1);
+  border-color: rgba(192,132,252,0.4);
+  color: var(--purple);
+}
+.btn-dfs:hover { background: rgba(192,132,252,0.2); box-shadow: var(--glow-p); }
+.btn-both {
+  background: rgba(245,158,11,0.1);
+  border-color: rgba(245,158,11,0.4);
+  color: var(--amber);
+}
+.btn-both:hover { background: rgba(245,158,11,0.2); box-shadow: var(--glow-a); }
+.btn-astar {
+  background: rgba(245,158,11,0.12);
+  border-color: rgba(245,158,11,0.5);
+  color: var(--amber);
+}
+.btn-astar:hover { background: rgba(245,158,11,0.25); box-shadow: var(--glow-a); }
+.btn-sample {
+  background: rgba(16,185,129,0.1);
+  border-color: rgba(16,185,129,0.4);
+  color: var(--green);
+}
+.btn-sample:hover { background: rgba(16,185,129,0.2); box-shadow: 0 0 14px rgba(16,185,129,0.4); }
+.btn-clear {
+  background: rgba(255,255,255,0.04);
+  border-color: rgba(255,255,255,0.1);
+  color: var(--text-dim);
+}
+.btn-clear:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+
+/* ════════════════════════════════════════
+   WORKSPACE
+════════════════════════════════════════ */
+.workspace {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .workspace { grid-template-columns: 1fr; }
+}
+.canvas-wrap {
+  position: relative;
+  display: inline-block;
+}
+.canvas-wrap::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  z-index: -1;
+}
+.p9-wrap::before { background: linear-gradient(135deg, var(--cyan), transparent 50%, var(--purple)); }
+.p11-wrap::before { background: linear-gradient(135deg, var(--amber), transparent 50%, var(--green)); }
+
+canvas {
+  display: block;
+  cursor: crosshair;
+  border: 1px solid var(--border2);
+}
+#p9-canvas { width: 600px; height: 600px; }
+#p11-canvas { width: 700px; height: 520px; }
+
+/* ════════════════════════════════════════
+   RESULTS PANEL
+════════════════════════════════════════ */
+.results-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+}
+.results-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.results-header-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+}
+.results-body {
+  padding: 14px;
+  flex: 1;
+  overflow-y: auto;
+  font-size: 12px;
+  max-height: 540px;
+}
+.results-placeholder {
+  color: var(--text-dim);
+  font-style: italic;
+  text-align: center;
+  margin-top: 60px;
+  font-size: 11px;
+}
+
+/* Result content styles */
+.res-algo-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.res-success { color: var(--green); font-weight: 700; font-size: 13px; margin-bottom: 10px; }
+.res-fail { color: var(--red); font-weight: 700; font-size: 13px; margin-bottom: 10px; }
+.res-section {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  margin: 10px 0 4px;
+  font-family: 'Orbitron', sans-serif;
+}
+.res-path {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.8;
+}
+.path-node {
+  display: inline-block;
+  padding: 1px 4px;
+  background: rgba(0,212,255,0.07);
+  border: 1px solid rgba(0,212,255,0.2);
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+}
+.path-node.dfs-node {
+  background: rgba(192,132,252,0.07);
+  border-color: rgba(192,132,252,0.2);
+}
+.path-node.astar-node {
+  background: rgba(245,158,11,0.07);
+  border-color: rgba(245,158,11,0.2);
+}
+.path-arrow { color: var(--text-dim); margin: 0 2px; }
+.res-metric-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-size: 11px;
+}
+.res-metric-key { color: var(--text-dim); }
+.res-metric-val { font-weight: 700; }
+.res-sep {
+  border: none; border-top: 1px solid var(--border);
+  margin: 12px 0;
+}
+.res-analysis-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 4px 0;
+  font-size: 11px;
+}
+.cost-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 6px;
+  font-size: 11px;
+}
+.cost-table th {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  padding: 5px 8px;
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+}
+.cost-table th:first-child { text-align: left; }
+.cost-table td {
+  padding: 4px 8px;
+  text-align: right;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  font-family: 'Space Mono', monospace;
+}
+.cost-table td:first-child { text-align: left; font-weight: 700; }
+.cost-table tr.on-path td { background: rgba(245,158,11,0.06); color: var(--amber); }
+
+/* ════════════════════════════════════════
+   STATS ROW
+════════════════════════════════════════ */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+.stat-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 14px 18px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s;
+}
+.stat-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0;
+  width: 2px; height: 100%;
+  background: var(--stat-color, var(--cyan));
+  opacity: 0.7;
+}
+.stat-label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.stat-value {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--stat-color, var(--cyan));
+  transition: all 0.4s;
+}
+.stat-sub {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+.stat-placeholder {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9px;
+  color: var(--text-dim);
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+}
+
+/* ════════════════════════════════════════
+   LEGEND
+════════════════════════════════════════ */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.legend-swatch {
+  width: 14px; height: 14px;
+  border: 1px solid rgba(255,255,255,0.1);
+  flex-shrink: 0;
+}
+
+/* ════════════════════════════════════════
+   ALGORITHM INFO CARDS
+════════════════════════════════════════ */
+.algo-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+.algo-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 16px;
+  position: relative;
+}
+.algo-card-accent {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 2px;
+}
+.algo-card-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  margin-bottom: 10px;
+}
+.algo-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 11px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.algo-card-row:last-child { border-bottom: none; }
+.algo-card-key { color: var(--text-dim); }
+.algo-card-val { font-weight: 700; }
+
+/* ════════════════════════════════════════
+   STATUS BAR
+════════════════════════════════════════ */
+.status-bar {
+  margin-top: 8px;
+  padding: 7px 14px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border);
+  border-top: none;
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.status-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--green);
+  animation: dotPulse 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes dotPulse {
+  0%,100% { opacity: 1; } 50% { opacity: 0.3; }
+}
+
+/* ════════════════════════════════════════
+   TOOLTIP
+════════════════════════════════════════ */
+.tooltip {
+  position: fixed;
+  z-index: 9000;
+  pointer-events: none;
+  background: #0a1526;
+  border: 1px solid var(--border2);
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--text);
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  display: none;
+}
+
+/* ════════════════════════════════════════
+   SCROLLBARS
+════════════════════════════════════════ */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.3); }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,212,255,0.5); }
+
+/* ════════════════════════════════════════
+   COMPARISON TABLE
+════════════════════════════════════════ */
+.cmp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  margin-top: 8px;
+}
+.cmp-table th {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.cmp-table td {
+  padding: 5px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.cmp-table .bfs-col { color: var(--cyan); }
+.cmp-table .dfs-col { color: var(--purple); }
+.cmp-table .metric-col { color: var(--text-dim); font-size: 10px; letter-spacing: 0.06em; }
+
+/* ════════════════════════════════════════
+   HELP PANEL
+════════════════════════════════════════ */
+.help-panel {
+  background: rgba(0,212,255,0.03);
+  border: 1px solid rgba(0,212,255,0.12);
+  padding: 12px 16px;
+  margin-top: 10px;
+  font-size: 11px;
+  line-height: 1.8;
+}
+.help-panel.amber {
+  background: rgba(245,158,11,0.03);
+  border-color: rgba(245,158,11,0.12);
+}
+.help-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+  color: var(--text-dim);
+}
+
+/* ════════════════════════════════════════
+   MODAL / OVERLAY
+════════════════════════════════════════ */
+.modal-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 8000;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.active { display: flex; }
+.modal {
+  background: #0a1526;
+  border: 1px solid var(--border2);
+  padding: 28px;
+  min-width: 320px;
+  max-width: 90vw;
+  box-shadow: 0 0 40px rgba(0,212,255,0.15);
+}
+.modal h3 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  margin-bottom: 12px;
+  color: var(--amber);
+}
+.modal input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  font-size: 13px;
+  padding: 8px 12px;
+  margin-bottom: 14px;
+  outline: none;
+}
+.modal input:focus { border-color: var(--amber); }
+.modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
+.modal-btn {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 7px 16px;
+  border: 1px solid;
+  cursor: pointer;
+  background: transparent;
+}
+.modal-btn-ok { border-color: var(--amber); color: var(--amber); }
+.modal-btn-ok:hover { background: rgba(245,158,11,0.1); }
+.modal-btn-cancel { border-color: var(--border2); color: var(--text-dim); }
+.modal-btn-cancel:hover { background: rgba(255,255,255,0.05); }
+</style>
+</head>
+<body>
+
+<!-- Background animated canvas -->
+<canvas class="bg-canvas" id="bg-canvas"></canvas>
+<div class="scanlines"></div>
+
+<!-- Tooltip -->
+<div class="tooltip" id="tooltip"></div>
+
+<!-- Modal for node/edge input -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h3 id="modal-title">INPUT</h3>
+    <input type="text" id="modal-input" autocomplete="off">
+    <div class="modal-btns">
+      <button class="modal-btn modal-btn-cancel" id="modal-cancel">CANCEL</button>
+      <button class="modal-btn modal-btn-ok" id="modal-ok">OK</button>
+    </div>
+  </div>
+</div>
+
+<div class="app">
+  <!-- HEADER -->
+  <header>
+    <div class="header-left">
+      <div class="header-title">
+        <span class="hex">⬡</span>
+        NEURAL COMMAND CENTER
+      </div>
+      <div class="header-sub">AI PROBLEM SOLVING ASSIGNMENT &nbsp;·&nbsp; BFS &nbsp;/&nbsp; DFS &nbsp;/&nbsp; A* SEARCH</div>
+    </div>
+    <div class="header-right">
+      <span class="badge">COURSE: ARTIFICIAL INTELLIGENCE</span>
+      <span class="badge" style="color: var(--green); border-color: rgba(16,185,129,0.3)">DONE BY: RA2411026050331</span>
+    </div>
+  </header>
+
+  <!-- TABS -->
+  <nav class="tab-nav">
+    <button class="tab-btn p9-tab active" onclick="switchTab('p9')">
+      <span class="tab-icon">🚁</span>PROBLEM 9 &nbsp;—&nbsp; DRONE GRID (BFS / DFS)
+    </button>
+    <button class="tab-btn p11-tab" onclick="switchTab('p11')">
+      <span class="tab-icon">🗺️</span>PROBLEM 11 &nbsp;—&nbsp; GPS ROUTE (A*)
+    </button>
+  </nav>
+
+  <!-- ═══════════════════════════════════════
+       PROBLEM 9: DRONE DELIVERY — BFS/DFS
+  ═══════════════════════════════════════ -->
+  <section class="tab-content active" id="tab-p9">
+
+    <div class="control-bar p9-bar">
+      <span class="mode-label">CLICK MODE:</span>
+      <div class="mode-group">
+        <input type="radio" name="p9mode" id="p9m-start" class="mode-radio" value="start">
+        <label for="p9m-start" class="mode-label-btn">📍 SET START</label>
+
+        <input type="radio" name="p9mode" id="p9m-goal" class="mode-radio" value="goal">
+        <label for="p9m-goal" class="mode-label-btn">🎯 SET GOAL</label>
+
+        <input type="radio" name="p9mode" id="p9m-wall" class="mode-radio" value="wall" checked>
+        <label for="p9m-wall" class="mode-label-btn">🧱 TOGGLE WALL</label>
+      </div>
+
+      <div class="divider"></div>
+
+      <button class="btn btn-bfs" onclick="p9RunBFS()">▶ RUN BFS</button>
+      <button class="btn btn-dfs" onclick="p9RunDFS()">▶ RUN DFS</button>
+      <button class="btn btn-both" onclick="p9RunBoth()">⚡ RUN BOTH</button>
+      <button class="btn btn-sample" onclick="p9LoadSample()">📋 SAMPLE</button>
+      <button class="btn btn-clear" onclick="p9Clear()">🔄 CLEAR</button>
+    </div>
+
+    <div class="workspace">
+      <div class="canvas-wrap p9-wrap">
+        <canvas id="p9-canvas" width="600" height="600"></canvas>
+        <div class="status-bar" id="p9-status">
+          <span class="status-dot"></span>
+          <span id="p9-status-text">Select a mode, place START and GOAL, draw walls, then run an algorithm.</span>
+        </div>
+      </div>
+
+      <div class="results-panel">
+        <div class="results-header">
+          <div class="results-header-title">📊 ALGORITHM RESULTS</div>
+        </div>
+        <div class="results-body" id="p9-results">
+          <div class="results-placeholder">Run BFS, DFS, or Both to see results here.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="stats-row" id="p9-stats">
+      <div class="stat-card" style="--stat-color: var(--text-dim)">
+        <div class="stat-label">PATH LENGTH</div>
+        <div class="stat-value" style="font-size:14px;color:var(--text-dim)">AWAITING RUN</div>
+      </div>
+      <div class="stat-card" style="--stat-color: var(--text-dim)">
+        <div class="stat-label">NODES EXPLORED</div>
+        <div class="stat-value" style="font-size:14px;color:var(--text-dim)">AWAITING RUN</div>
+      </div>
+      <div class="stat-card" style="--stat-color: var(--text-dim)">
+        <div class="stat-label">EXECUTION TIME</div>
+        <div class="stat-value" style="font-size:14px;color:var(--text-dim)">AWAITING RUN</div>
+      </div>
+      <div class="stat-card" style="--stat-color: var(--text-dim)">
+        <div class="stat-label">ALGORITHM</div>
+        <div class="stat-value" style="font-size:14px;color:var(--text-dim)">—</div>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+      <div class="legend-item"><div class="legend-swatch" style="background:#10b981"></div>Start (S)</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#ef4444"></div>Goal (G)</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#050a14"></div>Wall</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#00d4ff"></div>BFS Path</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#c084fc"></div>DFS Path</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#f59e0b"></div>Shared Path</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:rgba(0,212,255,0.18)"></div>BFS Explored</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:rgba(192,132,252,0.18)"></div>DFS Explored</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#0d1b2a"></div>Free Cell</div>
+    </div>
+
+    <!-- Algo info cards -->
+    <div class="algo-cards">
+      <div class="algo-card">
+        <div class="algo-card-accent" style="background: var(--cyan)"></div>
+        <div class="algo-card-title" style="color: var(--cyan)">BFS — Breadth-First Search</div>
+        <div class="algo-card-row"><span class="algo-card-key">Data Structure</span><span class="algo-card-val" style="color:var(--cyan)">Queue (FIFO)</span></div>
+        <div class="algo-card-row"><span class="algo-card-key">Path Optimality</span><span class="algo-card-val" style="color:var(--green)">✔ Guaranteed Shortest</span></div>
+        <div class="algo-card-row"><span class="algo-card-key">Time Complexity</span><span class="algo-card-val">O(V + E)</span></div>
+        <div class="algo-card-row"><span class="algo-card-key">Space Complexity</span><span class="algo-card-val">O(V)</span></div>
+        <div class="algo-card-row"><span class="algo-card-key">Memory Usage</span><span class="algo-card-val" style="color:var(--red)">Higher</span></div>
+        <div class="algo-card-row"><span class="algo-card-key">Best For</span><span class="algo-card-val">Shortest path critical</span></div>
+      </div>
+      <div class="algo-card">
+        <div class="algo-card-accent" style="background: var(--purple)"></div>
+        <div class="algo-card-title" style="color: var(--purple)">DFS — Depth-First Search</div>
+        <div class="algo-card-row"><span class="algo-card-key">Data Structure</span><span class="algo-card-val" style="color:var(--purple)">Stack (LIFO)</span></div>
+        <div class="algo-card-row"><span class="algo-card-key">Path Optimality</span><span class="algo-card-val" style="color:var(--amber)">⚠ Not Guaranteed</span></div>
+        <div class="algo-card-row"><span class="algo-card-key">Time Complexity</span><span class="algo-card-val">O(V + E)</span></div>
+        <div class="algo-card-row"><span class="algo-card-key">Space Complexity</span><span class="algo-card-val">O(V)</span></div>
+        <div class="algo-card-row"><span class="algo-card-key">Memory Usage</span><span class="algo-card-val" style="color:var(--green)">Lower</span></div>
+        <div class="algo-card-row"><span class="algo-card-key">Best For</span><span class="algo-card-val">Memory-constrained</span></div>
+      </div>
+      <div class="algo-card">
+        <div class="algo-card-accent" style="background: linear-gradient(90deg, var(--cyan), var(--purple))"></div>
+        <div class="algo-card-title" style="color: var(--amber)">Key Differences</div>
+        <div class="algo-card-row"><span class="algo-card-key">BFS Explores</span><span class="algo-card-val">Level by level</span></div>
+        <div class="algo-card-row"><span class="algo-card-key">DFS Explores</span><span class="algo-card-val">Deep before wide</span></div>
+        <div class="algo-card-row"><span class="algo-card-key">BFS Nodes</span><span class="algo-card-val" style="color:var(--cyan)">More (all breadths)</span></div>
+        <div class="algo-card-row"><span class="algo-card-key">DFS Nodes</span><span class="algo-card-val" style="color:var(--purple)">Fewer (one branch)</span></div>
+        <div class="algo-card-row"><span class="algo-card-key">Grid Use Case</span><span class="algo-card-val">Drone shortest flight</span></div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ═══════════════════════════════════════
+       PROBLEM 11: GPS ROUTE FINDER — A*
+  ═══════════════════════════════════════ -->
+  <section class="tab-content" id="tab-p11">
+
+    <div class="control-bar p11-bar">
+      <span class="mode-label">MODE:</span>
+      <div class="mode-group">
+        <input type="radio" name="p11mode" id="p11m-addnode" class="mode-radio" value="add_node" checked>
+        <label for="p11m-addnode" class="mode-label-btn">➕ ADD NODE</label>
+
+        <input type="radio" name="p11mode" id="p11m-addedge" class="mode-radio" value="add_edge">
+        <label for="p11m-addedge" class="mode-label-btn">🔗 ADD EDGE</label>
+
+        <input type="radio" name="p11mode" id="p11m-setstart" class="mode-radio" value="set_start">
+        <label for="p11m-setstart" class="mode-label-btn">📍 SET START</label>
+
+        <input type="radio" name="p11mode" id="p11m-setgoal" class="mode-radio" value="set_goal">
+        <label for="p11m-setgoal" class="mode-label-btn">🎯 SET GOAL</label>
+
+        <input type="radio" name="p11mode" id="p11m-delete" class="mode-radio" value="delete">
+        <label for="p11m-delete" class="mode-label-btn">🗑️ DELETE</label>
+      </div>
+
+      <div class="divider"></div>
+
+      <button class="btn btn-astar" onclick="p11RunAstar()">▶ RUN A*</button>
+      <button class="btn btn-sample" onclick="p11LoadSample()">📋 SAMPLE</button>
+      <button class="btn btn-clear" onclick="p11Clear()">🔄 CLEAR</button>
+    </div>
+
+    <div class="workspace">
+      <div class="canvas-wrap p11-wrap">
+        <canvas id="p11-canvas" width="700" height="520"></canvas>
+        <div class="status-bar" id="p11-status">
+          <span class="status-dot" style="background:var(--amber)"></span>
+          <span id="p11-status-text">Add nodes by clicking. Connect with edges. Load Sample for a quick demo.</span>
+        </div>
+      </div>
+
+      <div class="results-panel">
+        <div class="results-header">
+          <div class="results-header-title">📊 A* RESULTS</div>
+        </div>
+        <div class="results-body" id="p11-results">
+          <div class="results-placeholder">Run A* to see step-by-step costs here.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="stats-row" id="p11-stats">
+      <div class="stat-card" style="--stat-color: var(--text-dim)">
+        <div class="stat-label">TOTAL COST</div>
+        <div class="stat-value" style="font-size:14px;color:var(--text-dim)">AWAITING RUN</div>
+      </div>
+      <div class="stat-card" style="--stat-color: var(--text-dim)">
+        <div class="stat-label">PATH NODES</div>
+        <div class="stat-value" style="font-size:14px;color:var(--text-dim)">AWAITING RUN</div>
+      </div>
+      <div class="stat-card" style="--stat-color: var(--text-dim)">
+        <div class="stat-label">NODES EXPLORED</div>
+        <div class="stat-value" style="font-size:14px;color:var(--text-dim)">AWAITING RUN</div>
+      </div>
+      <div class="stat-card" style="--stat-color: var(--text-dim)">
+        <div class="stat-label">EXECUTION TIME</div>
+        <div class="stat-value" style="font-size:14px;color:var(--text-dim)">AWAITING RUN</div>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+      <div class="legend-item"><div class="legend-swatch" style="background:#10b981; border-radius:50%"></div>Start Node</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#ef4444; border-radius:50%"></div>Goal Node</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#00d4ff; border-radius:50%"></div>Path Node</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:rgba(16,185,129,0.25); border-radius:50%"></div>Explored</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#f59e0b; height:4px; margin: 5px 0; border:none"></div>Optimal Edge</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#2a3a5a; height:2px; margin: 6px 0; border:none"></div>Normal Edge</div>
+    </div>
+
+    <!-- A* algorithm card -->
+    <div class="algo-cards">
+      <div class="algo-card">
+        <div class="algo-card-accent" style="background: var(--amber)"></div>
+        <div class="algo-card-title" style="color: var(--amber)">A* — A-Star Search</div>
+        <div class="algo-card-row"><span class="algo-card-key">Data Structure</span><span class="algo-card-val" style="color:var(--amber)">Priority Queue (Min-Heap)</span></div>
+        <div class="algo-card-row"><span class="algo-card-key">Path Optimality</span><span class="algo-card-val" style="color:var(--green)">✔ Optimal (admissible h)</span></div>
+        <div class="algo-card-row"><span class="algo-card-key">Time Complexity</span><span class="algo-card-val">O(E log V)</span></div>
+        <div class="algo-card-row"><span class="algo-card-key">Heuristic</span><span class="algo-card-val">Euclidean Distance</span></div>
+      </div>
+      <div class="algo-card">
+        <div class="algo-card-accent" style="background: linear-gradient(90deg, var(--cyan), var(--amber))"></div>
+        <div class="algo-card-title" style="color: var(--text)">Cost Functions</div>
+        <div class="algo-card-row"><span class="algo-card-key" style="font-style:italic">f(n) = g(n) + h(n)</span><span class="algo-card-val">Total priority</span></div>
+        <div class="algo-card-row"><span class="algo-card-key" style="font-style:italic">g(n)</span><span class="algo-card-val">Actual cost from start</span></div>
+        <div class="algo-card-row"><span class="algo-card-key" style="font-style:italic">h(n)</span><span class="algo-card-val">Heuristic to goal</span></div>
+        <div class="algo-card-row"><span class="algo-card-key">h is admissible?</span><span class="algo-card-val" style="color:var(--green)">Yes (never overestimates)</span></div>
+        <div class="algo-card-row"><span class="algo-card-key">h is consistent?</span><span class="algo-card-val" style="color:var(--green)">Yes (triangle inequality)</span></div>
+      </div>
+      <div class="algo-card">
+        <div class="algo-card-accent" style="background: var(--purple)"></div>
+        <div class="algo-card-title" style="color: var(--text)">A* vs BFS/DFS</div>
+        <div class="algo-card-row"><span class="algo-card-key">BFS</span><span class="algo-card-val">Ignores edge weights</span></div>
+        <div class="algo-card-row"><span class="algo-card-key">DFS</span><span class="algo-card-val">Non-optimal paths</span></div>
+        <div class="algo-card-row"><span class="algo-card-key">Dijkstra</span><span class="algo-card-val">No heuristic guidance</span></div>
+        <div class="algo-card-row"><span class="algo-card-key">A*</span><span class="algo-card-val" style="color:var(--amber)">Optimal + heuristic-guided</span></div>
+        <div class="algo-card-row"><span class="algo-card-key">Use Case</span><span class="algo-card-val">GPS navigation, maps</span></div>
+      </div>
+    </div>
+
+  </section>
+</div><!-- .app -->
+
+<script>
+/* ════════════════════════════════════════
+   ANIMATED BACKGROUND
+════════════════════════════════════════ */
+(function() {
+  const canvas = document.getElementById('bg-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, particles = [];
+
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  for (let i = 0; i < 60; i++) {
+    particles.push({
+      x: Math.random() * 1920, y: Math.random() * 1080,
+      vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.3,
+      r: Math.random() * 1.5 + 0.5,
+      alpha: Math.random() * 0.5 + 0.1,
+      hue: Math.random() > 0.5 ? 195 : 270
+    });
+  }
+
+  function frame() {
+    ctx.clearRect(0, 0, W, H);
+    // Grid
+    ctx.strokeStyle = 'rgba(0,212,255,0.04)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < W; x += 80) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+    for (let y = 0; y < H; y += 80) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+
+    for (const p of particles) {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+      if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${p.hue},100%,70%,${p.alpha})`;
+      ctx.fill();
+    }
+    requestAnimationFrame(frame);
+  }
+  frame();
+})();
+
+/* ════════════════════════════════════════
+   TAB SWITCHING
+════════════════════════════════════════ */
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(s => s.classList.remove('active'));
+  if (tab === 'p9') {
+    document.querySelector('.p9-tab').classList.add('active');
+    document.getElementById('tab-p9').classList.add('active');
+  } else {
+    document.querySelector('.p11-tab').classList.add('active');
+    document.getElementById('tab-p11').classList.add('active');
+    P11.draw();
+  }
+}
+
+/* ════════════════════════════════════════
+   MODAL HELPER
+════════════════════════════════════════ */
+function showModal(title, placeholder, defaultVal) {
+  return new Promise(resolve => {
+    document.getElementById('modal-title').textContent = title;
+    const inp = document.getElementById('modal-input');
+    inp.placeholder = placeholder || '';
+    inp.value = defaultVal !== undefined ? String(defaultVal) : '';
+    document.getElementById('modal-overlay').classList.add('active');
+    inp.focus(); inp.select();
+    function done(val) {
+      document.getElementById('modal-overlay').classList.remove('active');
+      resolve(val);
+    }
+    document.getElementById('modal-ok').onclick = () => done(inp.value.trim());
+    document.getElementById('modal-cancel').onclick = () => done(null);
+    inp.onkeydown = e => { if (e.key === 'Enter') done(inp.value.trim()); if (e.key === 'Escape') done(null); };
+  });
+}
+
+/* ════════════════════════════════════════
+   STATUS BAR HELPERS
+════════════════════════════════════════ */
+function p9Status(msg) { document.getElementById('p9-status-text').textContent = msg; }
+function p11Status(msg) { document.getElementById('p11-status-text').textContent = msg; }
+
+/* ════════════════════════════════════════
+   PROBLEM 9 — DRONE DELIVERY (BFS/DFS)
+════════════════════════════════════════ */
+const P9 = (() => {
+  const ROWS = 15, COLS = 15, CELL = 40;
+  let grid, start, goal, dragValue, lastBFS, lastDFS;
+  let canvas, ctx;
+
+  // Colors
+  const C = {
+    free:    '#0b1828',
+    wall:    '#06080f',
+    start:   '#10b981',
+    goal:    '#ef4444',
+    bfsPath: '#00d4ff',
+    dfsPath: '#c084fc',
+    both:    '#f59e0b',
+    bfsVis:  'rgba(0,212,255,0.14)',
+    dfsVis:  'rgba(192,132,252,0.14)',
+    grid:    '#080e1c',
+    text:    '#000',
+  };
+
+  function init() {
+    canvas = document.getElementById('p9-canvas');
+    ctx = canvas.getContext('2d');
+    grid = Array.from({length: ROWS}, () => Array(COLS).fill(0));
+    start = null; goal = null; dragValue = 1;
+    lastBFS = null; lastDFS = null;
+
+    canvas.addEventListener('mousedown', onMouseDown);
+    canvas.addEventListener('mousemove', onMouseMove);
+    draw();
+  }
+
+  function getMode() {
+    const r = document.querySelector('input[name="p9mode"]:checked');
+    return r ? r.value : 'wall';
+  }
+
+  function cellFrom(e) {
+    const rect = canvas.getBoundingClientRect();
+    const sx = canvas.width / rect.width, sy = canvas.height / rect.height;
+    const x = (e.clientX - rect.left) * sx;
+    const y = (e.clientY - rect.top) * sy;
+    const c = Math.floor(x / CELL), r = Math.floor(y / CELL);
+    return (r >= 0 && r < ROWS && c >= 0 && c < COLS) ? [r,c] : null;
+  }
+
+  function isStart(r,c) { return start && start[0]===r && start[1]===c; }
+  function isGoal(r,c)  { return goal  && goal[0]===r  && goal[1]===c; }
+
+  function onMouseDown(e) {
+    const cell = cellFrom(e); if (!cell) return;
+    const [r,c] = cell;
+    const mode = getMode();
+    if (mode === 'start') { start=[r,c]; grid[r][c]=0; }
+    else if (mode === 'goal') { goal=[r,c]; grid[r][c]=0; }
+    else {
+      if (!isStart(r,c) && !isGoal(r,c)) {
+        grid[r][c] ^= 1; dragValue = grid[r][c];
+      }
+    }
+    resetResults(); draw();
+  }
+
+  function onMouseMove(e) {
+    if (e.buttons !== 1) return;
+    const cell = cellFrom(e); if (!cell) return;
+    const [r,c] = cell;
+    if (getMode() === 'wall' && !isStart(r,c) && !isGoal(r,c)) {
+      grid[r][c] = dragValue; draw();
+    }
+  }
+
+  function resetResults() { lastBFS = null; lastDFS = null; }
+
+  function draw(bfsPath, dfsPath, bfsVis, dfsVis) {
+    const bfsS = new Set((bfsPath||[]).map(([r,c])=>`${r},${c}`));
+    const dfsS = new Set((dfsPath||[]).map(([r,c])=>`${r},${c}`));
+    const bfsV = new Set((bfsVis||[]).map(([r,c])=>`${r},${c}`));
+    const dfsV = new Set((dfsVis||[]).map(([r,c])=>`${r},${c}`));
+
+    for (let r=0; r<ROWS; r++) {
+      for (let c=0; c<COLS; c++) {
+        const x = c*CELL, y = r*CELL;
+        const k = `${r},${c}`;
+        let color;
+        if (isStart(r,c))       color = C.start;
+        else if (isGoal(r,c))   color = C.goal;
+        else if (grid[r][c]===1) color = C.wall;
+        else if (bfsS.has(k)&&dfsS.has(k)) color = C.both;
+        else if (bfsS.has(k))  color = C.bfsPath;
+        else if (dfsS.has(k))  color = C.dfsPath;
+        else if (bfsV.has(k))  color = C.bfsVis;
+        else if (dfsV.has(k))  color = C.dfsVis;
+        else color = C.free;
+
+        ctx.fillStyle = color;
+        ctx.fillRect(x+1, y+1, CELL-2, CELL-2);
+
+        ctx.strokeStyle = C.grid;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x, y, CELL, CELL);
+
+        if (isStart(r,c)||isGoal(r,c)) {
+          ctx.fillStyle = isStart(r,c) ? '#000' : '#fff';
+          ctx.font = 'bold 15px "Space Mono"';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(isStart(r,c)?'S':'G', x+CELL/2, y+CELL/2);
+        }
+      }
+    }
+
+    if (bfsPath&&bfsPath.length>1) drawArrows(bfsPath, C.bfsPath, 2.5);
+    if (dfsPath&&dfsPath.length>1) drawArrows(dfsPath, C.dfsPath, 2.5);
+  }
+
+  function drawArrows(path, color, w) {
+    ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = w;
+    for (let i=0; i<path.length-1; i++) {
+      const [r1,c1]=path[i],[r2,c2]=path[i+1];
+      const x1=c1*CELL+CELL/2, y1=r1*CELL+CELL/2;
+      const x2=c2*CELL+CELL/2, y2=r2*CELL+CELL/2;
+      const angle=Math.atan2(y2-y1,x2-x1);
+      const hl=9;
+      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x2,y2);
+      ctx.lineTo(x2-hl*Math.cos(angle-Math.PI/6), y2-hl*Math.sin(angle-Math.PI/6));
+      ctx.lineTo(x2-hl*Math.cos(angle+Math.PI/6), y2-hl*Math.sin(angle+Math.PI/6));
+      ctx.closePath(); ctx.fill();
+    }
+  }
+
+  function bfs() {
+    const t0=performance.now();
+    const q=[[start,[start]]];
+    const vis=new Set([`${start[0]},${start[1]}`]);
+    const explored=[];
+    while (q.length) {
+      const [[r,c],path]=q.shift();
+      explored.push([r,c]);
+      if (r===goal[0]&&c===goal[1]) return {path,explored,time:performance.now()-t0};
+      for (const [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+        const nr=r+dr,nc=c+dc,k=`${nr},${nc}`;
+        if (nr>=0&&nr<ROWS&&nc>=0&&nc<COLS&&grid[nr][nc]===0&&!vis.has(k)) {
+          vis.add(k); q.push([[nr,nc],[...path,[nr,nc]]]);
+        }
+      }
+    }
+    return {path:null,explored,time:performance.now()-t0};
+  }
+
+  function dfs() {
+    const t0=performance.now();
+    const stk=[[start,[start]]];
+    const vis=new Set([`${start[0]},${start[1]}`]);
+    const explored=[];
+    while (stk.length) {
+      const [[r,c],path]=stk.pop();
+      explored.push([r,c]);
+      if (r===goal[0]&&c===goal[1]) return {path,explored,time:performance.now()-t0};
+      for (const [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+        const nr=r+dr,nc=c+dc,k=`${nr},${nc}`;
+        if (nr>=0&&nr<ROWS&&nc>=0&&nc<COLS&&grid[nr][nc]===0&&!vis.has(k)) {
+          vis.add(k); stk.push([[nr,nc],[...path,[nr,nc]]]);
+        }
+      }
+    }
+    return {path:null,explored,time:performance.now()-t0};
+  }
+
+  function validate() {
+    if (!start) { p9Status('⚠ Set a Start cell first (📍 mode, click a cell)'); return false; }
+    if (!goal)  { p9Status('⚠ Set a Goal cell first (🎯 mode, click a cell)'); return false; }
+    return true;
+  }
+
+  function setStats(bfsR, dfsR) {
+    const el = document.getElementById('p9-stats');
+    function card(label, val, color, sub='') {
+      return `<div class="stat-card" style="--stat-color:${color}">
+        <div class="stat-label">${label}</div>
+        <div class="stat-value" style="color:${color}">${val}</div>
+        ${sub?`<div class="stat-sub">${sub}</div>`:''}
+      </div>`;
+    }
+    let html='';
+    if (bfsR&&dfsR) {
+      const bfsLen=bfsR.path?bfsR.path.length:'N/A';
+      const dfsLen=dfsR.path?dfsR.path.length:'N/A';
+      const winner = (bfsR.path&&dfsR.path) ? (bfsR.path.length<=dfsR.path.length?'BFS':'DFS') : 'N/A';
+      html += card('BFS PATH', bfsR.path?bfsR.path.length+' steps':'NO PATH', 'var(--cyan)', 'Shortest guaranteed');
+      html += card('DFS PATH', dfsR.path?dfsR.path.length+' steps':'NO PATH', 'var(--purple)', 'Not always optimal');
+      html += card('BFS EXPLORED', bfsR.explored.length, 'var(--cyan)');
+      html += card('DFS EXPLORED', dfsR.explored.length, 'var(--purple)');
+    } else if (bfsR) {
+      html += card('PATH LENGTH', bfsR.path?bfsR.path.length+' steps':'NO PATH', 'var(--cyan)');
+      html += card('NODES EXPLORED', bfsR.explored.length, 'var(--cyan)');
+      html += card('EXEC TIME', bfsR.time.toFixed(3)+' ms', 'var(--cyan)');
+      html += card('ALGORITHM', 'BFS', 'var(--cyan)', 'Breadth-First Search');
+    } else if (dfsR) {
+      html += card('PATH LENGTH', dfsR.path?dfsR.path.length+' steps':'NO PATH', 'var(--purple)');
+      html += card('NODES EXPLORED', dfsR.explored.length, 'var(--purple)');
+      html += card('EXEC TIME', dfsR.time.toFixed(3)+' ms', 'var(--purple)');
+      html += card('ALGORITHM', 'DFS', 'var(--purple)', 'Depth-First Search');
+    }
+    el.innerHTML = html;
+  }
+
+  function renderSingleResult(algo, r) {
+    const color = algo==='bfs'?'var(--cyan)':'var(--purple)';
+    const name = algo==='bfs'?'BFS — Breadth-First Search':'DFS — Depth-First Search';
+    let h = `<div class="res-algo-title" style="color:${color}">${name}</div>`;
+    if (r.path) {
+      h += `<div class="res-success">✔ PATH FOUND</div>`;
+      h += `<div class="res-metric-row"><span class="res-metric-key">Path Length</span><span class="res-metric-val" style="color:${color}">${r.path.length} steps</span></div>`;
+      h += `<div class="res-metric-row"><span class="res-metric-key">Nodes Explored</span><span class="res-metric-val" style="color:${color}">${r.explored.length}</span></div>`;
+      h += `<div class="res-metric-row"><span class="res-metric-key">Execution Time</span><span class="res-metric-val">${r.time.toFixed(4)} ms</span></div>`;
+      h += `<hr class="res-sep">`;
+      h += `<div class="res-section">PATH SEQUENCE</div>`;
+      h += `<div class="res-path">`;
+      r.path.forEach(([pr,pc],i) => {
+        h += `<span class="path-node ${algo==='dfs'?'dfs-node':''}">(${pr},${pc})</span>`;
+        if (i<r.path.length-1) h += `<span class="path-arrow">→</span>`;
+      });
+      h += `</div>`;
+    } else {
+      h += `<div class="res-fail">✘ NO PATH EXISTS</div>`;
+      h += `<div class="res-metric-row"><span class="res-metric-key">Nodes Explored</span><span class="res-metric-val">${r.explored.length}</span></div>`;
+      h += `<div class="res-metric-row"><span class="res-metric-key">Execution Time</span><span class="res-metric-val">${r.time.toFixed(4)} ms</span></div>`;
+      h += `<hr class="res-sep"><p style="color:var(--text-dim);font-size:11px;">The start and goal may be disconnected by walls.</p>`;
+    }
+    document.getElementById('p9-results').innerHTML = h;
+  }
+
+  function renderComparison(bfsR, dfsR) {
+    let h = `<div class="res-algo-title" style="color:var(--amber)">BFS vs DFS — COMPARISON</div>`;
+    h += `<table class="cmp-table">
+      <tr><th class="metric-col">METRIC</th><th class="bfs-col">BFS</th><th class="dfs-col">DFS</th></tr>`;
+    const bLen=bfsR.path?bfsR.path.length:'—';
+    const dLen=dfsR.path?dfsR.path.length:'—';
+    h+=`<tr><td>Path Found?</td><td class="bfs-col">${bfsR.path?'✔ Yes':'✘ No'}</td><td class="dfs-col">${dfsR.path?'✔ Yes':'✘ No'}</td></tr>`;
+    h+=`<tr><td>Path Length</td><td class="bfs-col">${bLen} ${bfsR.path?'steps':''}</td><td class="dfs-col">${dLen} ${dfsR.path?'steps':''}</td></tr>`;
+    h+=`<tr><td>Nodes Explored</td><td class="bfs-col">${bfsR.explored.length}</td><td class="dfs-col">${dfsR.explored.length}</td></tr>`;
+    h+=`<tr><td>Exec Time</td><td class="bfs-col">${bfsR.time.toFixed(3)}ms</td><td class="dfs-col">${dfsR.time.toFixed(3)}ms</td></tr>`;
+    h+=`</table><hr class="res-sep">`;
+    h+=`<div class="res-section">ANALYSIS</div>`;
+    if (bfsR.path&&dfsR.path) {
+      const shorter = bfsR.path.length<=dfsR.path.length ? 'BFS' : 'DFS*';
+      const faster  = bfsR.time<=dfsR.time ? 'BFS' : 'DFS';
+      h+=`<div class="res-analysis-item"><span style="color:var(--green)">✔</span><span>BFS is optimal — shortest path guaranteed (${bfsR.path.length} steps)</span></div>`;
+      h+=`<div class="res-analysis-item"><span style="color:var(--amber)">⚡</span><span>${faster} ran faster</span></div>`;
+      if (bfsR.path.length<=dfsR.path.length) h+=`<div class="res-analysis-item"><span style="color:var(--cyan)">📏</span><span>BFS found the shorter path (${bfsR.path.length} vs ${dfsR.path.length} steps)</span></div>`;
+      else h+=`<div class="res-analysis-item"><span style="color:var(--purple)">📏</span><span>DFS happened to find same-or-shorter, but not guaranteed</span></div>`;
+    }
+    h+=`<hr class="res-sep"><div class="res-section">KEY DIFFERENCES</div>`;
+    h+=`<div class="res-metric-row"><span class="res-metric-key">BFS structure</span><span class="res-metric-val" style="color:var(--cyan)">Queue (FIFO)</span></div>`;
+    h+=`<div class="res-metric-row"><span class="res-metric-key">DFS structure</span><span class="res-metric-val" style="color:var(--purple)">Stack (LIFO)</span></div>`;
+    if (bfsR.path&&dfsR.path) {
+      h+=`<hr class="res-sep"><div class="res-section">BFS PATH</div><div class="res-path">`;
+      bfsR.path.forEach(([pr,pc],i)=>{
+        h+=`<span class="path-node">(${pr},${pc})</span>${i<bfsR.path.length-1?'<span class="path-arrow">→</span>':''}`;
+      });
+      h+=`</div><div class="res-section">DFS PATH</div><div class="res-path">`;
+      dfsR.path.forEach(([pr,pc],i)=>{
+        h+=`<span class="path-node dfs-node">(${pr},${pc})</span>${i<dfsR.path.length-1?'<span class="path-arrow">→</span>':''}`;
+      });
+      h+=`</div>`;
+    }
+    document.getElementById('p9-results').innerHTML = h;
+  }
+
+  function runBFS() {
+    if (!validate()) return;
+    const r=bfs(); lastBFS=r; lastDFS=null;
+    draw(r.path, null, r.explored, null);
+    renderSingleResult('bfs', r);
+    setStats(r, null);
+    p9Status(r.path ? `BFS: Found path (${r.path.length} steps, ${r.explored.length} explored, ${r.time.toFixed(3)}ms)` : 'BFS: No path found');
+  }
+  function runDFS() {
+    if (!validate()) return;
+    const r=dfs(); lastBFS=null; lastDFS=r;
+    draw(null, r.path, null, r.explored);
+    renderSingleResult('dfs', r);
+    setStats(null, r);
+    p9Status(r.path ? `DFS: Found path (${r.path.length} steps, ${r.explored.length} explored, ${r.time.toFixed(3)}ms)` : 'DFS: No path found');
+  }
+  function runBoth() {
+    if (!validate()) return;
+    const br=bfs(), dr=dfs(); lastBFS=br; lastDFS=dr;
+    draw(br.path, dr.path, br.explored, dr.explored);
+    renderComparison(br, dr);
+    setStats(br, dr);
+    p9Status('BFS + DFS: Both algorithms completed. Compare results →');
+  }
+  function clear() {
+    grid = Array.from({length:ROWS},()=>Array(COLS).fill(0));
+    start=null; goal=null; resetResults();
+    draw();
+    document.getElementById('p9-results').innerHTML='<div class="results-placeholder">Run BFS, DFS, or Both to see results here.</div>';
+    document.getElementById('p9-stats').innerHTML=`
+      <div class="stat-card"><div class="stat-label">PATH LENGTH</div><div class="stat-value" style="font-size:14px;color:var(--text-dim)">AWAITING RUN</div></div>
+      <div class="stat-card"><div class="stat-label">NODES EXPLORED</div><div class="stat-value" style="font-size:14px;color:var(--text-dim)">AWAITING RUN</div></div>
+      <div class="stat-card"><div class="stat-label">EXECUTION TIME</div><div class="stat-value" style="font-size:14px;color:var(--text-dim)">AWAITING RUN</div></div>
+      <div class="stat-card"><div class="stat-label">ALGORITHM</div><div class="stat-value" style="font-size:14px;color:var(--text-dim)">—</div></div>`;
+    p9Status('Grid cleared. Set start, goal, draw walls, then run.');
+  }
+  function loadSample() {
+    clear();
+    const s=[
+      [0,0,0,1,0,0,0,0,0,0,0,0,0,0,0],
+      [1,1,0,1,0,0,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [0,1,1,1,0,0,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      [0,0,1,0,0,1,1,0,0,0,0,0,0,0,0],
+      [0,0,1,0,0,0,1,0,0,0,0,0,0,0,0],
+      [0,0,0,0,1,0,0,0,0,0,0,0,0,0,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    ];
+    for (let r=0;r<s.length;r++) for (let c=0;c<s[r].length;c++) grid[r][c]=s[r][c];
+    start=[0,0]; goal=[8,12]; draw();
+    p9Status('Sample loaded from assignment PDF. Click ▶ RUN BFS, ▶ RUN DFS, or ⚡ RUN BOTH.');
+  }
+
+  init();
+  return { runBFS, runDFS, runBoth, clear, loadSample };
+})();
+
+function p9RunBFS()    { P9.runBFS(); }
+function p9RunDFS()    { P9.runDFS(); }
+function p9RunBoth()   { P9.runBoth(); }
+function p9Clear()     { P9.clear(); }
+function p9LoadSample(){ P9.loadSample(); }
+
+/* ════════════════════════════════════════
+   PROBLEM 11 — GPS ROUTE FINDER (A*)
+════════════════════════════════════════ */
+const P11 = (() => {
+  const CW=700, CH=520, NODE_R=22;
+  let nodes, adj, startNode, goalNode, edgeFrom;
+  let resPath, resExplored, resGScore, resFScore;
+  let canvas, ctx;
+
+  const C = {
+    bg:      '#060d1a',
+    grid:    'rgba(0,212,255,0.04)',
+    node:    '#0d2140',
+    nodeExp: 'rgba(16,185,129,0.25)',
+    nodePath:'#00d4ff',
+    nodeStart:'#10b981',
+    nodeGoal: '#ef4444',
+    edge:    '#1e3a5f',
+    edgePath:'#f59e0b',
+    text:    '#c8d8f0',
+    textDim: '#506070',
+    accent:  '#f59e0b',
+  };
+
+  function init() {
+    canvas = document.getElementById('p11-canvas');
+    ctx = canvas.getContext('2d');
+    nodes={}; adj={}; startNode=null; goalNode=null; edgeFrom=null;
+    resPath=null; resExplored=[]; resGScore={}; resFScore={};
+    canvas.addEventListener('mousedown', onClick);
+    canvas.addEventListener('contextmenu', e=>{e.preventDefault();if(edgeFrom){edgeFrom=null;draw();}});
+    canvas.style.cursor='crosshair';
+    draw();
+  }
+
+  function getMode() {
+    const r=document.querySelector('input[name="p11mode"]:checked');
+    return r?r.value:'add_node';
+  }
+
+  function nodeAt(x,y) {
+    for (const [name,[nx,ny]] of Object.entries(nodes)) {
+      if (Math.hypot(x-nx,y-ny)<=NODE_R+5) return name;
+    }
+    return null;
+  }
+
+  async function onClick(e) {
+    const rect=canvas.getBoundingClientRect();
+    const sx=canvas.width/rect.width, sy=canvas.height/rect.height;
+    const x=(e.clientX-rect.left)*sx, y=(e.clientY-rect.top)*sy;
+    const hit=nodeAt(x,y);
+    const mode=getMode();
+
+    if (mode==='add_node') {
+      if (hit) { p11Status(`Node '${hit}' already exists here.`); return; }
+      const name=await showModal('NEW NODE','City name (e.g. A, B, Mumbai)','');
+      if (!name) return;
+      const n=name.toUpperCase();
+      if (nodes[n]) { p11Status(`Node '${n}' already exists.`); return; }
+      nodes[n]=[x,y]; adj[n]={};
+      invalidate(); p11Status(`Added node '${n}' at (${Math.round(x)}, ${Math.round(y)})`);
+    }
+    else if (mode==='add_edge') {
+      if (!hit) { p11Status('Click an existing node to start an edge.'); return; }
+      if (!edgeFrom) {
+        edgeFrom=hit; draw(); p11Status(`Edge from '${hit}' — now click destination node`);
+      } else {
+        if (hit===edgeFrom) { edgeFrom=null; draw(); p11Status('Cancelled — same node.'); return; }
+        const costStr=await showModal(`EDGE COST: ${edgeFrom} → ${hit}`,'Enter cost (e.g. 5)','1');
+        if (costStr===null) { edgeFrom=null; draw(); return; }
+        const cost=parseFloat(costStr);
+        if (isNaN(cost)||cost<=0) { p11Status('Invalid cost. Must be a positive number.'); edgeFrom=null; draw(); return; }
+        adj[edgeFrom][hit]=cost; adj[hit][edgeFrom]=cost;
+        p11Status(`Added edge ${edgeFrom} ↔ ${hit} (cost=${cost})`);
+        edgeFrom=null; invalidate();
+      }
+    }
+    else if (mode==='set_start') {
+      if (!hit) { p11Status('Click on a node to set as Start.'); return; }
+      startNode=hit; invalidate(); p11Status(`Start set to '${hit}'`);
+    }
+    else if (mode==='set_goal') {
+      if (!hit) { p11Status('Click on a node to set as Goal.'); return; }
+      goalNode=hit; invalidate(); p11Status(`Goal set to '${hit}'`);
+    }
+    else if (mode==='delete') {
+      if (!hit) { p11Status('Click on a node to delete it.'); return; }
+      delete nodes[hit]; delete adj[hit];
+      for (const n of Object.keys(adj)) delete adj[n][hit];
+      if (startNode===hit) startNode=null;
+      if (goalNode===hit)  goalNode=null;
+      invalidate(); p11Status(`Deleted node '${hit}'`);
+    }
+  }
+
+  function invalidate() {
+    resPath=null; resExplored=[]; resGScore={}; resFScore={}; draw();
+  }
+
+  function euclidean(a,b) {
+    const [x1,y1]=nodes[a],[x2,y2]=nodes[b];
+    return Math.hypot(x2-x1,y2-y1);
+  }
+
+  function astar() {
+    const t0=performance.now();
+    function h(n){return nodes[goalNode]?euclidean(n,goalNode):0;}
+    const openSet=[[h(startNode),0,startNode,[startNode]]];
+    const gScore={[startNode]:0};
+    const fScore={[startNode]:h(startNode)};
+    const closed=new Set();
+    const explored=[];
+
+    while (openSet.length) {
+      openSet.sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+      const [f,g,node,path]=openSet.shift();
+      if (closed.has(node)) continue;
+      closed.add(node); explored.push(node);
+      if (node===goalNode) {
+        return {path,explored,cost:g,gScore,fScore,time:performance.now()-t0};
+      }
+      for (const [nb,cost] of Object.entries(adj[node]||{})) {
+        if (closed.has(nb)) continue;
+        const tg=g+cost;
+        if (tg<(gScore[nb]??Infinity)) {
+          gScore[nb]=tg; fScore[nb]=tg+h(nb);
+          openSet.push([fScore[nb],tg,nb,[...path,nb]]);
+        }
+      }
+    }
+    return {path:null,explored,cost:Infinity,gScore,fScore,time:performance.now()-t0};
+  }
+
+  function draw() {
+    ctx.clearRect(0,0,CW,CH);
+    // Background
+    ctx.fillStyle=C.bg; ctx.fillRect(0,0,CW,CH);
+    // Grid
+    ctx.strokeStyle=C.grid; ctx.lineWidth=1;
+    for (let x=0;x<CW;x+=50){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,CH);ctx.stroke();}
+    for (let y=0;y<CH;y+=50){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(CW,y);ctx.stroke();}
+
+    const pathSet=new Set(resPath||[]);
+    const pathEdges=new Set();
+    if (resPath) for (let i=0;i<resPath.length-1;i++){pathEdges.add(resPath[i]+'>'+resPath[i+1]);pathEdges.add(resPath[i+1]+'>'+resPath[i]);}
+    const exploredSet=new Set(resExplored);
+    const drawn=new Set();
+
+    // Draw edges
+    for (const [n,nbrs] of Object.entries(adj)) {
+      const [x1,y1]=nodes[n]||[0,0];
+      for (const [m,cost] of Object.entries(nbrs)) {
+        const ek=n<m?`${n}|${m}`:`${m}|${n}`;
+        if (drawn.has(ek)) continue; drawn.add(ek);
+        const [x2,y2]=nodes[m]||[0,0];
+        const isPath=pathEdges.has(`${n}>${m}`);
+        ctx.strokeStyle=isPath?C.edgePath:C.edge;
+        ctx.lineWidth=isPath?3.5:1.5;
+        ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+        // Cost label
+        const mx=(x1+x2)/2, my=(y1+y2)/2;
+        ctx.fillStyle='#0a1020';
+        ctx.beginPath(); ctx.ellipse(mx,my,14,10,0,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle=isPath?C.edgePath:'#507090';
+        ctx.font='bold 10px "Space Mono"';
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText(cost%1===0?cost:cost.toFixed(1), mx, my);
+      }
+    }
+
+    // Draw path arrows
+    if (resPath&&resPath.length>1) {
+      for (let i=0;i<resPath.length-1;i++) {
+        const [x1,y1]=nodes[resPath[i]],[x2,y2]=nodes[resPath[i+1]];
+        const dx=x2-x1,dy=y2-y1,d=Math.hypot(dx,dy);
+        if (d===0) continue;
+        const sx=x1+dx/d*(NODE_R+3), sy=y1+dy/d*(NODE_R+3);
+        const ex=x2-dx/d*(NODE_R+7), ey=y2-dy/d*(NODE_R+7);
+        const angle=Math.atan2(dy,dx), hl=11;
+        ctx.strokeStyle=C.accent; ctx.fillStyle=C.accent; ctx.lineWidth=2.5;
+        ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(ex,ey); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(ex,ey);
+        ctx.lineTo(ex-hl*Math.cos(angle-Math.PI/6),ey-hl*Math.sin(angle-Math.PI/6));
+        ctx.lineTo(ex-hl*Math.cos(angle+Math.PI/6),ey-hl*Math.sin(angle+Math.PI/6));
+        ctx.closePath(); ctx.fill();
+      }
+    }
+
+    // Draw nodes
+    for (const [name,[x,y]] of Object.entries(nodes)) {
+      let fill, outline, ow=1.5;
+      if (name===startNode)     { fill=C.nodeStart; outline='#10b981'; ow=3; }
+      else if (name===goalNode) { fill=C.nodeGoal;  outline='#ef4444'; ow=3; }
+      else if (pathSet.has(name)){ fill=C.nodePath; outline='rgba(0,212,255,0.6)'; ow=2; }
+      else if (exploredSet.has(name)) { fill=C.nodeExp; outline='rgba(16,185,129,0.4)'; }
+      else { fill=C.node; outline='rgba(0,212,255,0.2)'; }
+
+      ctx.beginPath(); ctx.arc(x,y,NODE_R,0,Math.PI*2);
+      ctx.fillStyle=fill; ctx.fill();
+      ctx.strokeStyle=outline; ctx.lineWidth=ow; ctx.stroke();
+
+      ctx.fillStyle=C.text; ctx.font='bold 13px "Space Mono"';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(name,x,y);
+
+      // g/f scores
+      if (resGScore[name]!==undefined&&resExplored.length) {
+        const g=resGScore[name];
+        const f=(resFScore[name]||0);
+        const h=f-g;
+        ctx.fillStyle='rgba(200,216,240,0.4)';
+        ctx.font='9px "Space Mono"';
+        ctx.fillText(`f=${Math.round(f)}`,x,y+NODE_R+11);
+      }
+
+      // Edge-from highlight
+      if (name===edgeFrom) {
+        ctx.beginPath(); ctx.arc(x,y,NODE_R+6,0,Math.PI*2);
+        ctx.strokeStyle=C.accent; ctx.lineWidth=2; ctx.stroke();
+      }
+    }
+  }
+
+  function runAstar() {
+    if (!Object.keys(nodes).length) { p11Status('⚠ Add nodes first or load the sample.'); return; }
+    if (!startNode) { p11Status('⚠ Set a Start node (📍 mode, click a node).'); return; }
+    if (!goalNode)  { p11Status('⚠ Set a Goal node (🎯 mode, click a node).'); return; }
+    if (startNode===goalNode) { p11Status('⚠ Start and Goal must be different.'); return; }
+    const r=astar();
+    resPath=r.path; resExplored=r.explored; resGScore=r.gScore; resFScore=r.fScore;
+    draw();
+    renderResults(r);
+    setStats(r);
+    if (r.path) p11Status(`A* → ${r.path.join(' → ')} | Cost: ${r.cost.toFixed(2)} | ${r.explored.length} explored | ${r.time.toFixed(3)}ms`);
+    else p11Status('A*: No path found. Check that start and goal are connected.');
+  }
+
+  function renderResults(r) {
+    let h=`<div class="res-algo-title" style="color:var(--amber)">A* — A-Star Search Results</div>`;
+    if (r.path) {
+      h+=`<div class="res-success">✔ OPTIMAL PATH FOUND</div>`;
+      h+=`<div class="res-metric-row"><span class="res-metric-key">Start</span><span class="res-metric-val" style="color:var(--green)">${startNode}</span></div>`;
+      h+=`<div class="res-metric-row"><span class="res-metric-key">Goal</span><span class="res-metric-val" style="color:var(--red)">${goalNode}</span></div>`;
+      h+=`<div class="res-metric-row"><span class="res-metric-key">Total Cost</span><span class="res-metric-val" style="color:var(--amber)">${r.cost.toFixed(2)}</span></div>`;
+      h+=`<div class="res-metric-row"><span class="res-metric-key">Path Length</span><span class="res-metric-val">${r.path.length} nodes</span></div>`;
+      h+=`<div class="res-metric-row"><span class="res-metric-key">Nodes Explored</span><span class="res-metric-val">${r.explored.length}</span></div>`;
+      h+=`<div class="res-metric-row"><span class="res-metric-key">Exec Time</span><span class="res-metric-val">${r.time.toFixed(4)} ms</span></div>`;
+      h+=`<hr class="res-sep"><div class="res-section">OPTIMAL PATH</div>`;
+      h+=`<div class="res-path">`;
+      r.path.forEach((n,i)=>{
+        h+=`<span class="path-node astar-node">${n}</span>`;
+        if (i<r.path.length-1) h+=`<span class="path-arrow">→</span>`;
+      });
+      h+=`</div>`;
+      h+=`<hr class="res-sep"><div class="res-section">STEP-BY-STEP COSTS</div>`;
+      h+=`<table class="cost-table">
+        <tr><th>NODE</th><th>g(n)</th><th>h(n)</th><th>f(n)</th></tr>`;
+      for (const node of r.path) {
+        const g=r.gScore[node]??0;
+        const f=r.fScore[node]??0;
+        const hh=f-g;
+        h+=`<tr class="on-path"><td>${node}</td><td>${g.toFixed(2)}</td><td>${hh.toFixed(2)}</td><td>${f.toFixed(2)}</td></tr>`;
+      }
+      h+=`</table>`;
+      h+=`<hr class="res-sep"><div class="res-section">EXPLORATION ORDER</div>`;
+      h+=`<div style="font-size:11px;color:var(--text-dim);margin-top:4px;line-height:1.8">${r.explored.join(' → ')}</div>`;
+    } else {
+      h+=`<div class="res-fail">✘ NO PATH EXISTS</div>`;
+      h+=`<div class="res-metric-row"><span class="res-metric-key">Nodes Explored</span><span class="res-metric-val">${r.explored.length}</span></div>`;
+      h+=`<div class="res-metric-row"><span class="res-metric-key">Exec Time</span><span class="res-metric-val">${r.time.toFixed(4)} ms</span></div>`;
+      h+=`<p style="color:var(--text-dim);font-size:11px;margin-top:10px;">Ensure start and goal are connected via edges.</p>`;
+    }
+    document.getElementById('p11-results').innerHTML=h;
+  }
+
+  function setStats(r) {
+    function card(label,val,color,sub=''){
+      return `<div class="stat-card" style="--stat-color:${color}">
+        <div class="stat-label">${label}</div>
+        <div class="stat-value" style="color:${color}">${val}</div>
+        ${sub?`<div class="stat-sub">${sub}</div>`:''}
+      </div>`;
+    }
+    let h='';
+    if (r.path) {
+      h+=card('TOTAL COST',r.cost.toFixed(2),'var(--amber)','Optimal path cost');
+      h+=card('PATH NODES',r.path.length,'var(--cyan)');
+      h+=card('EXPLORED',r.explored.length,'var(--green)');
+      h+=card('EXEC TIME',r.time.toFixed(3)+' ms','var(--text)');
+    } else {
+      h+=card('STATUS','NO PATH','var(--red)');
+      h+=card('EXPLORED',r.explored.length,'var(--text-dim)');
+      h+=card('EXEC TIME',r.time.toFixed(3)+' ms','var(--text-dim)');
+    }
+    document.getElementById('p11-stats').innerHTML=h;
+  }
+
+  function loadSample() {
+    clear();
+    const pos={
+      'A':[100,265],'B':[230,145],'C':[230,385],
+      'D':[375,195],'E':[375,345],'F':[555,265],
+      'G':[440,95],'H':[580,120]
+    };
+    for (const [n,p] of Object.entries(pos)){nodes[n]=p;adj[n]={};}
+    const edges=[['A','B',1],['A','C',4],['B','D',2],['B','E',5],
+                 ['C','D',1],['D','F',3],['E','F',1],
+                 ['B','G',6],['G','H',2],['H','F',4]];
+    for (const [u,v,w] of edges){adj[u][v]=w;adj[v][u]=w;}
+    startNode='A'; goalNode='F';
+    resPath=null; resExplored=[]; resGScore={}; resFScore={};
+    draw();
+    p11Status('Sample loaded (assignment PDF graph). Click ▶ RUN A* to find the optimal path.');
+  }
+
+  function clear() {
+    nodes={}; adj={}; startNode=null; goalNode=null; edgeFrom=null;
+    resPath=null; resExplored=[]; resGScore={}; resFScore={};
+    document.getElementById('p11-results').innerHTML='<div class="results-placeholder">Run A* to see step-by-step costs here.</div>';
+    document.getElementById('p11-stats').innerHTML=`
+      <div class="stat-card"><div class="stat-label">TOTAL COST</div><div class="stat-value" style="font-size:14px;color:var(--text-dim)">AWAITING RUN</div></div>
+      <div class="stat-card"><div class="stat-label">PATH NODES</div><div class="stat-value" style="font-size:14px;color:var(--text-dim)">AWAITING RUN</div></div>
+      <div class="stat-card"><div class="stat-label">NODES EXPLORED</div><div class="stat-value" style="font-size:14px;color:var(--text-dim)">AWAITING RUN</div></div>
+      <div class="stat-card"><div class="stat-label">EXECUTION TIME</div><div class="stat-value" style="font-size:14px;color:var(--text-dim)">AWAITING RUN</div></div>`;
+    draw();
+    p11Status('Cleared. Add nodes by clicking, connect with edges, then run A*.');
+  }
+
+  return { init, draw, runAstar, loadSample, clear };
+})();
+
+function p11RunAstar()    { P11.runAstar(); }
+function p11LoadSample()  { P11.loadSample(); }
+function p11Clear()       { P11.clear(); }
+</script>
+</body>
+</html>
