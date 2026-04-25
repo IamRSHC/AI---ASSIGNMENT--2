@@ -1771,7 +1771,8 @@ const P11 = (() => {
     p11Status('Cleared. Add nodes by clicking, connect with edges, then run A*.');
   }
 
-  return { init, draw, runAstar, loadSample, clear };
+  init();
+  return { draw, runAstar, loadSample, clear };
 })();
 
 function p11RunAstar()    { P11.runAstar(); }
