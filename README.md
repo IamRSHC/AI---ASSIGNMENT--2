@@ -2,6 +2,7 @@
 ### AI Problem Solving Assignment — Interactive Web Visualizer
 
 > **Course:** Artificial Intelligence  
+> **Student NAME:** R S HAREECHARAN
 > **Student ID:** RA2411026050331  
 > **Deadline:** 25 April 2026  
 > **Deployment:** Static Site (Vercel)
@@ -751,4 +752,5 @@ This project was created as an academic assignment submission. All code is origi
 ---
 
 *Built with vanilla HTML, CSS, and JavaScript. No frameworks. No libraries. No build step.*  
+*Student NAME: R S HAREECHARAN*
 *Student: RA2411026050331 — Artificial Intelligence Course*
